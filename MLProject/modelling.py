@@ -6,7 +6,6 @@ import mlflow
 import mlflow.sklearn
 import json
 import argparse
-import dagshub
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -52,9 +51,6 @@ def main(alpha, loss, penalty, max_iter):
     """
     Fungsi training utama.
     """
-    # Menggunakan init()
-    dagshub.init(mlflow=True) 
-    
     print(f"MLflow Tracking URI: {mlflow.get_tracking_uri()}")
     
     with mlflow.start_run(run_name="CI Workflow Run") as run:
