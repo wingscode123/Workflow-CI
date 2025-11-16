@@ -1,0 +1,20 @@
+name: MLflow-CI-Training
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+    # Menerapkan best_params dari kriteria 2
+      alpha: {type: float, default: 0.0001}
+      loss: {type: string, default: "log_loss"}
+      penalty: {type: string, default: "l2"}
+      max_iter: {type: int, default: 1000}
+    
+    command: |
+      python modelling.py \
+      --alpha {alpha} \
+      --loss {loss} \
+      --penalty {penalty} \
+      --max_iter {max_iter}
+
