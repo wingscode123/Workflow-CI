@@ -18,7 +18,6 @@ jobs:
               with:
                 activate-environment: mlflow-ci-env
                 environment-file: MLProject/conda.yaml
-                python-version: '3.12.7'
                 auto-activate-base: false
             - name: Tampilkan Environment
               shell: bash
