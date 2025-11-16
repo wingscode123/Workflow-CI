@@ -63,7 +63,8 @@ def main(alpha, loss, penalty, max_iter):
         mlflow.log_param("max_iter", max_iter)
         
         # 2. Muat data
-        X_train, X_test, y_train, y_test, class_names = load_processed_data("dataset-coursera_preprocessing")
+        data_path = os.path.join("MLProject", "dataset-coursera_preprocessing")
+        X_train, X_test, y_train, y_test, class_names = load_processed_data(data_path)
         
         # 3. Training model
         print("Melatih model SGDClassifier...")
