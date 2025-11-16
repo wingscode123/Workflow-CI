@@ -1,4 +1,4 @@
-name: MLflow CI Basic
+name: MLflow CI Skilled
 
 on:
     push:
