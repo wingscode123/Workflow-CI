@@ -125,7 +125,7 @@ def main(alpha, loss, penalty, max_iter):
 
         # Log model
         print("Menyimpan model secara lokal untuk Docker Build")
-        local_model_path = "local_model_for_docker"
+        local_model_path = os.path.join("MLProject", "local_model_for_docker")
         mlflow.sklearn.save_model(model, local_model_path)
         print(f"Model disimpan secara lokal di '{local_model_path}'")
         print(f"Run {run.info.run_id} selesai dan dicatat.")
