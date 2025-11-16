@@ -1,49 +1,83 @@
-name: MLflow CI Skilled
+name: MLflow CI Advanced (Train and Build Docker)
 
 on:
-    push:
-        branches:
-            - main
-    workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-    run-training-pipeline:
-        runs-on: ubuntu-latest
+  run-training-and-build-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
-            - name: Set up Conda Environment
-              uses: conda-incubator/setup-miniconda@v2
-              with:
-                activate-environment: mlflow-ci-env
-                environment-file: MLProject/conda.yaml
-                auto-activate-base: false
-            - name: Tampilkan Environment
-              shell: bash
-              run: |
-                echo "--- (Debug) Tampilkan environment ---"
-                echo "Aktivasi env: $CONDA_DEFAULT_ENV"
-                echo "Lokasi Python:"
-                which python
-                echo "Versi Python:"
-                python --version
-                echo "Daftar paket Pip:"
-                pip list
-                echo "-----------------------------------"
-            - name: Run Training Script (Manual)
-              shell: bash
-              env:
-                MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-                DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-                DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-                # Untuk mlflow murni
-                MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-                MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-              run: |
-                echo "--- Menjalankan Skrip Training via 'conda run' ---"
-                conda run -n mlflow-ci-env python MLProject/modelling.py \
-                    --alpha 0.0001 \
-                    --loss "log_loss" \
-                    --penalty "l2" \
-                    --max_iter 1000
+      - name: Set up Conda Environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: mlflow-ci-env
+          environment-file: MLProject/conda.yaml
+          auto-activate-base: false
+
+      - name: (Debug) Tampilkan environment
+        shell: bash
+        run: |
+          echo "--- (Debug) Tampilkan environment ---"
+          echo "Aktivasi env: $CONDA_DEFAULT_ENV"
+          echo "Lokasi Python:"
+          which python
+          pip list
+          echo "-----------------------------------"
+
+      # --- LANGKAH 1: LOGIN KE DOCKER HUB ---
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # --- Langkah Training ---
+      - name: Run Training Script (and save local model)
+        shell: bash
+        env:
+          # Secrets untuk DagsHub
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          echo "--- Menjalankan Skrip Training via 'conda run' ---"
+          conda run -n mlflow-ci-env python MLProject/modelling.py \
+            --alpha 0.0001 \
+            --loss "log_loss" \
+            --penalty "l2" \
+            --max_iter 1000
+
+      # --- LANGKAH 2: BUILD DOCKER IMAGE ---
+      - name: Build Docker image with MLflow
+        shell: bash
+        env:
+          # MLflow perlu ini untuk dependensi (mengambil dari DagsHub)
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          echo "--- Membangun Docker Image ---"
+          # Buat nama image: <username>/<image_name>:<tag>
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/workflow-ci-model:latest"
+          
+          # Panggil 'mlflow' dari dalam env conda
+          conda run -n mlflow-ci-env mlflow models build-docker \
+            -m "MLProject/local_model_for_docker" \
+            -n "$IMAGE_NAME" \
+            --enable-mlserver # Membuat server inferensi yang siap produksi
+
+      # --- LANGKAH 3: PUSH DOCKER IMAGE ---
+      - name: Push Docker Image to Docker Hub
+        run: |
+          echo "--- Mendorong (Push) Docker Image ---"
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/workflow-ci-model:latest"
+          docker push "$IMAGE_NAME"
