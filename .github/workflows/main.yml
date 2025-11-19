@@ -52,6 +52,7 @@ jobs:
           echo "--- Menjalankan Skrip Training via 'mlflow run' ---"
           conda run -n mlflow-ci-env mlflow run MLProject \
             --env-manager=local \
+            --experiment-name "CI_Workflow_Experiment" \
             -P alpha=0.0001 \
             -P loss="log_loss" \
             -P penalty="l2" \
