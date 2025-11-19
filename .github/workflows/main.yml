@@ -52,10 +52,10 @@ jobs:
           echo "--- Menjalankan Skrip Training via 'mlflow run' ---"
           conda run -n mlflow-ci-env mlflow run MLProject \
             --env-manager=local \
-            -P alpha 0.0001 \
-            -P loss "log_loss" \
-            -P penalty "l2" \
-            -P max_iter 1000
+            -P alpha=0.0001 \
+            -P loss="log_loss" \
+            -P penalty="l2" \
+            -P max_iter=1000
 
       # --- LANGKAH 2: BUILD DOCKER IMAGE ---
       - name: Build Docker image with MLflow
