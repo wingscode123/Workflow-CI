@@ -6,6 +6,7 @@ import mlflow
 import mlflow.sklearn
 import json
 import argparse
+import shutil
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -17,20 +18,22 @@ from sklearn.utils import estimator_html_repr
 
 def load_processed_data(data_path):
     # Memuat data yang telah diproses
-    print("Memuat data...")
+    print(f"Memuat data dari: {data_path}")
+    # Load Sparse Matrix
     X_train = load_npz(os.path.join(data_path, "X_train.npz"))
     X_test = load_npz(os.path.join(data_path, "X_test.npz"))
     
+    # Load Target
     with open(os.path.join(data_path, "y_train.pkl"), "rb") as f:
         y_train = pickle.load(f)
     with open(os.path.join(data_path, "y_test.pkl"), "rb") as f:
         y_test = pickle.load(f)
         
+    # Load Class Names
     with open(os.path.join(data_path, "label_encoder.pkl"), "rb") as f:
         le = pickle.load(f)
     class_names = le.classes_
-        
-    print("Data berhasil dimuat.")
+    
     return X_train, X_test, y_train, y_test, class_names
 
 def plot_confusion_matrix(cm, class_names, title, filename):
@@ -53,6 +56,8 @@ def main(alpha, loss, penalty, max_iter):
     """
     print(f"MLflow Tracking URI: {mlflow.get_tracking_uri()}")
     
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
     with mlflow.start_run(run_name="CI Workflow Run") as run:
         print("Memulai run MLflow...")
         
@@ -63,7 +68,7 @@ def main(alpha, loss, penalty, max_iter):
         mlflow.log_param("max_iter", max_iter)
         
         # 2. Muat data
-        data_path = os.path.join("MLProject", "dataset-coursera_preprocessing")
+        data_path = os.path.join(base_dir, "dataset-coursera_preprocessing")
         X_train, X_test, y_train, y_test, class_names = load_processed_data(data_path)
         
         # 3. Training model
@@ -122,13 +127,19 @@ def main(alpha, loss, penalty, max_iter):
         with open("estimator.html", "w", encoding="utf-8") as f:
             f.write(html_repr)
         mlflow.log_artifact("estimator.html")
+        
+        # Log model ke dagshub
+        mlflow.sklearn.log_model(model, "model")
 
-        # Log model
+        # Simpan model lokal untuk docker build
         print("Menyimpan model secara lokal untuk Docker Build")
-        local_model_path = os.path.join("MLProject", "local_model_for_docker")
+        local_model_path = os.path.join(base_dir, "local_model_for_docker")
+        if os.path.exists(local_model_path):
+            shutil.rmtree(local_model_path)
+        
         mlflow.sklearn.save_model(model, local_model_path)
         print(f"Model disimpan secara lokal di '{local_model_path}'")
-        print(f"Run {run.info.run_id} selesai dan dicatat.")
+        print(f"Run {run.info.run_id} selesai dan dicatat")
 
 # Entry point untuk menerima parameter
 if __name__ == "__main__":
